@@ -121,9 +121,13 @@ else ifeq ($(platform), ps2)
    RANLIB = mips64r5900el-ps2-elf-ranlib
    STRIP = mips64r5900el-ps2-elf-strip
    fpic :=
-   
-   FLAGS += -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations -DLIBRETRO_NO_JIT -DCPU_MIPS -DEE -D_EE -DLSB_FIRST
-   
+   FLAGS += -march=r5900 -mtune=r5900 -G0 \
+			-ffast-math -fomit-frame-pointer \
+			-DPS2 -DABGR1555 -fno-expensive-optimizations \
+			-DLIBRETRO_NO_JIT -DCPU_MIPS -DEE -D_EE -DLSB_FIRST \
+			-D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE \
+			-Wno-error=incompatible-pointer-types
+			
    STATIC_LINKING := 1
    STATIC_LINKING_LINK := 1
    PLATFORM_DEFINES := -DPS2 -DVIDEO_ABGR1555 -DIOAPI_NO_64
