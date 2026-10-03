@@ -122,13 +122,13 @@ else ifeq ($(platform), ps2)
    STRIP = mips64r5900el-ps2-elf-strip
    fpic :=
    FLAGS += -march=r5900 -mtune=r5900 -G0 \
-			-ffast-math -fomit-frame-pointer \
-			-DPS2 -DABGR1555 -fno-expensive-optimizations \
-			-DLIBRETRO_NO_JIT -DCPU_MIPS -DEE -D_EE -DLSB_FIRST \
-			-D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE \
-			-Wno-error=incompatible-pointer-types
-			
-   STATIC_LINKING := 1
+            -ffast-math -fomit-frame-pointer \
+            -DPS2 -DABGR1555 -fno-expensive-optimizations \
+            -DLIBRETRO_NO_JIT -DCPU_MIPS -DEE -D_EE -DLSB_FIRST \
+            -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE \
+            -Wno-error=incompatible-pointer-types
+            
+   STATIC_LINKING := 0
    STATIC_LINKING_LINK := 1
    PLATFORM_DEFINES := -DPS2 -DVIDEO_ABGR1555 -DIOAPI_NO_64
    FRONTEND_SUPPORTS_RGB565 := 0
@@ -139,16 +139,17 @@ else ifeq ($(platform), ps2)
    CHD_PTTY := $(AMIBERRY_DIR)/src/archivers/chd/posixptty.cpp
    CHD_SOCKET := $(AMIBERRY_DIR)/src/archivers/chd/posixsocket.cpp
    SHARED :=
-   
-   # Automatically patch libco/sjlj.c for PS2 setjmp/longjmp support
-   DUMMY_SJLI_FIX := $(shell \
-      sed -i 's/sigjmp_buf/jmp_buf/g' libco/sjlj.c 2>/dev/null; \
-      sed -i 's/sigsetjmp/setjmp/g' libco/sjlj.c 2>/dev/null; \
-      sed -i 's/siglongjmp/longjmp/g' libco/sjlj.c 2>/dev/null; \
-      sed -i 's/setjmp(\([^,]*\),\s*0)/setjmp(\1)/g' libco/sjlj.c 2>/dev/null; \
-      sed -i '/stack_t stack/,/}/c\  void *stack_base = __builtin_alloca(stack_size);' libco/sjlj.c 2>/dev/null; \
-      sed -i 's/if(stack.ss_sp &&.*sigaltstack.*;/if(0) {/' libco/sjlj.c 2>/dev/null; \
-   )
+
+   # Patch libco/sjlj.c safely before building
+   DUMMY_SJLI_FIX := $(shell sh -c ' \
+      sed -i "s/sigjmp_buf/jmp_buf/g" libco/sjlj.c; \
+      sed -i "s/sigsetjmp/setjmp/g" libco/sjlj.c; \
+      sed -i "s/siglongjmp/longjmp/g" libco/sjlj.c; \
+      sed -i "s/setjmp(\([^,]*\),\s*0)/setjmp(\1)/g" libco/sjlj.c; \
+      sed -i "s/stack_size/16384/g" libco/sjlj.c; \
+      sed -i "/stack_t stack/,/}/c\  void *stack_base = __builtin_alloca(16384);" libco/sjlj.c; \
+      sed -i "s/if(stack.ss_sp &&.*sigaltstack.*;/if(0) {/" libco/sjlj.c; \
+   ')
    
 else
    TARGET := $(TARGET_NAME)_libretro.dll
