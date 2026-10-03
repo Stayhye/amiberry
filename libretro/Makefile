@@ -738,7 +738,16 @@ all: $(TARGET) $(LIBRETRO_INFO)
 
 $(NLOHMANN_JSON_HEADER):
 	@mkdir -p $(NLOHMANN_JSON_DIR)
-	curl -sfL -o $@ https://github.com/nlohmann/json/releases/download/$(NLOHMANN_JSON_VERSION)/json.hpp
+	@if command -v curl >/dev/null 2>&1; then \
+		curl -sfL -o $@ https://github.com/nlohmann/json/releases/download/$(NLOHMANN_JSON_VERSION)/json.hpp; \
+	elif command -v wget >/dev/null 2>&1; then \
+		wget -qO $@ https://github.com/nlohmann/json/releases/download/$(NLOHMANN_JSON_VERSION)/json.hpp; \
+	elif command -v python3 >/dev/null 2>&1; then \
+		python3 -c "import urllib.request; urllib.request.urlretrieve('https://github.com/nlohmann/json/releases/download/$(NLOHMANN_JSON_VERSION)/json.hpp', '$@')"; \
+	else \
+		echo "Error: No download tool (curl, wget, python3) found." >&2; \
+		exit 1; \
+	fi
 
 $(TARGET): $(OBJECTS)
 	$(AR) rcs $@ $^
