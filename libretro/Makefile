@@ -140,6 +140,16 @@ else ifeq ($(platform), ps2)
    CHD_SOCKET := $(AMIBERRY_DIR)/src/archivers/chd/posixsocket.cpp
    SHARED :=
    
+   # Automatically patch libco/sjlj.c for PS2 setjmp/longjmp support
+   DUMMY_SJLI_FIX := $(shell \
+      sed -i 's/sigjmp_buf/jmp_buf/g' libco/sjlj.c 2>/dev/null; \
+      sed -i 's/sigsetjmp/setjmp/g' libco/sjlj.c 2>/dev/null; \
+      sed -i 's/siglongjmp/longjmp/g' libco/sjlj.c 2>/dev/null; \
+      sed -i 's/setjmp(\([^,]*\),\s*0)/setjmp(\1)/g' libco/sjlj.c 2>/dev/null; \
+      sed -i '/stack_t stack/,/}/c\  void *stack_base = __builtin_alloca(stack_size);' libco/sjlj.c 2>/dev/null; \
+      sed -i 's/if(stack.ss_sp &&.*sigaltstack.*;/if(0) {/' libco/sjlj.c 2>/dev/null; \
+   )
+   
 else
    TARGET := $(TARGET_NAME)_libretro.dll
    CC ?= gcc
