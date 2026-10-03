@@ -118,16 +118,17 @@ else ifeq ($(platform), ps2)
    CC = mips64r5900el-ps2-elf-gcc
    CXX = mips64r5900el-ps2-elf-g++
    AR = mips64r5900el-ps2-elf-ar
-   CFLAGS += -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations
-   CXXFLAGS += -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations
-   LDFLAGS += 
-   STATIC_LINKING=1
-   STATIC_LINKING_LINK=1
-   PLATFORM_DEFINES := -DPS2 -DVIDEO_ABGR1555 -DIOAPI_NO_64
-   FRONTEND_SUPPORTS_RGB565 = 0
    RANLIB = mips64r5900el-ps2-elf-ranlib
    STRIP = mips64r5900el-ps2-elf-strip
    fpic :=
+   
+   FLAGS += -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations -DLIBRETRO_NO_JIT -DCPU_MIPS -DEE -D_EE -DLSB_FIRST
+   
+   STATIC_LINKING := 1
+   STATIC_LINKING_LINK := 1
+   PLATFORM_DEFINES := -DPS2 -DVIDEO_ABGR1555 -DIOAPI_NO_64
+   FRONTEND_SUPPORTS_RGB565 := 0
+   
    CHD_OSDLIB := $(AMIBERRY_DIR)/src/archivers/chd/osdlib_unix.cpp
    CHD_FILEIMP := $(AMIBERRY_DIR)/src/archivers/chd/posixfile.cpp
    CHD_DIR := $(AMIBERRY_DIR)/src/archivers/chd/posixdir.cpp
