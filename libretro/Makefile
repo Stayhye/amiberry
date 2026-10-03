@@ -139,17 +139,6 @@ else ifeq ($(platform), ps2)
    CHD_PTTY := $(AMIBERRY_DIR)/src/archivers/chd/posixptty.cpp
    CHD_SOCKET := $(AMIBERRY_DIR)/src/archivers/chd/posixsocket.cpp
    SHARED :=
-
-   # Patch libco/sjlj.c safely before building
-   DUMMY_SJLI_FIX := $(shell sh -c ' \
-      sed -i "s/sigjmp_buf/jmp_buf/g" libco/sjlj.c; \
-      sed -i "s/sigsetjmp/setjmp/g" libco/sjlj.c; \
-      sed -i "s/siglongjmp/longjmp/g" libco/sjlj.c; \
-      sed -i "s/setjmp(\([^,]*\),\s*0)/setjmp(\1)/g" libco/sjlj.c; \
-      sed -i "s/stack_size/16384/g" libco/sjlj.c; \
-      sed -i "/stack_t stack/,/}/c\  void *stack_base = __builtin_alloca(16384);" libco/sjlj.c; \
-      sed -i "s/if(stack.ss_sp &&.*sigaltstack.*;/if(0) {/" libco/sjlj.c; \
-   ')
    
 else
    TARGET := $(TARGET_NAME)_libretro.dll
