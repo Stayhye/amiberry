@@ -112,11 +112,19 @@ else ifeq ($(platform), osx)
    CHD_SOCKET := $(AMIBERRY_DIR)/src/archivers/chd/posixsocket.cpp
    SHARED := -dynamiclib
    LDFLAGS += -framework CoreFoundation -framework DiskArbitration -lz -liconv
+# PS2
 else ifeq ($(platform), ps2)
-   TARGET := $(TARGET_NAME)_libretro_ps2.a
+   TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = mips64r5900el-ps2-elf-gcc
    CXX = mips64r5900el-ps2-elf-g++
    AR = mips64r5900el-ps2-elf-ar
+   CFLAGS += -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations
+   CXXFLAGS += -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations
+   LDFLAGS += 
+   STATIC_LINKING=1
+   STATIC_LINKING_LINK=1
+   PLATFORM_DEFINES := -DPS2 -DVIDEO_ABGR1555 -DIOAPI_NO_64
+   FRONTEND_SUPPORTS_RGB565 = 0
    RANLIB = mips64r5900el-ps2-elf-ranlib
    STRIP = mips64r5900el-ps2-elf-strip
    fpic :=
@@ -126,7 +134,7 @@ else ifeq ($(platform), ps2)
    CHD_PTTY := $(AMIBERRY_DIR)/src/archivers/chd/posixptty.cpp
    CHD_SOCKET := $(AMIBERRY_DIR)/src/archivers/chd/posixsocket.cpp
    SHARED :=
-   STATIC_LINKING := 1
+   
 else
    TARGET := $(TARGET_NAME)_libretro.dll
    CC ?= gcc
@@ -198,7 +206,7 @@ else ifneq (,$(findstring arm64,$(ARCH)))
 else ifneq (,$(findstring arm,$(ARCH)))
    FLAGS += -DCPU_ARM
 else ifeq ($(platform), ps2)
-   FLAGS += -DCPU_MIPS -G0 -mips2 -march=r5900 -mabi=eabi -DEE -D_EE -DLSB_FIRST
+   FLAGS += -DCPU_MIPS -G0 -march=r5900 -DEE -D_EE -DLSB_FIRST
 else
    FLAGS += -DCPU_X86_64
 endif
