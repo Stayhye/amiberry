@@ -112,6 +112,21 @@ else ifeq ($(platform), osx)
    CHD_SOCKET := $(AMIBERRY_DIR)/src/archivers/chd/posixsocket.cpp
    SHARED := -dynamiclib
    LDFLAGS += -framework CoreFoundation -framework DiskArbitration -lz -liconv
+else ifeq ($(platform), ps2)
+   TARGET := $(TARGET_NAME)_libretro_ps2.a
+   CC = mips64r5900el-ps2-elf-gcc
+   CXX = mips64r5900el-ps2-elf-g++
+   AR = mips64r5900el-ps2-elf-ar
+   RANLIB = mips64r5900el-ps2-elf-ranlib
+   STRIP = mips64r5900el-ps2-elf-strip
+   fpic :=
+   CHD_OSDLIB := $(AMIBERRY_DIR)/src/archivers/chd/osdlib_unix.cpp
+   CHD_FILEIMP := $(AMIBERRY_DIR)/src/archivers/chd/posixfile.cpp
+   CHD_DIR := $(AMIBERRY_DIR)/src/archivers/chd/posixdir.cpp
+   CHD_PTTY := $(AMIBERRY_DIR)/src/archivers/chd/posixptty.cpp
+   CHD_SOCKET := $(AMIBERRY_DIR)/src/archivers/chd/posixsocket.cpp
+   SHARED :=
+   STATIC_LINKING := 1
 else
    TARGET := $(TARGET_NAME)_libretro.dll
    CC ?= gcc
@@ -131,7 +146,9 @@ FLAGS += -fvisibility=hidden
 endif
 FLAGS += -ffunction-sections -fdata-sections
 ifneq ($(platform), osx)
+ifneq ($(platform), ps2)
 LDFLAGS += -Wl,--gc-sections
+endif
 else
 LDFLAGS += -Wl,-dead_strip
 endif
@@ -180,20 +197,18 @@ else ifneq (,$(findstring arm64,$(ARCH)))
    FLAGS += -DCPU_AARCH64
 else ifneq (,$(findstring arm,$(ARCH)))
    FLAGS += -DCPU_ARM
+else ifeq ($(platform), ps2)
+   FLAGS += -DCPU_MIPS -G0 -mips2 -march=r5900 -mabi=eabi -DEE -D_EE -DLSB_FIRST
 else
    FLAGS += -DCPU_X86_64
 endif
 
+ifeq ($(platform), ps2)
+   FLAGS += -DLIBRETRO_NO_JIT
+   SOURCES_JIT :=
+endif
+
 ifeq ($(platform), win)
-   # Prefer llvm-mingw / MSYS2 CLANG64 on Windows: the main Amiberry build is
-   # Clang/LLD-based, so the libretro core uses the same toolchain to keep ABI
-   # and runtime libs aligned. Fall back to MinGW-w64 GCC if clang isn't found.
-   #
-   # NOTE: use `=` (not `?=`) because GNU make's implicit defaults
-   # (CC=cc, CXX=g++) count as "already defined" for `?=`, so `?=` would be
-   # a no-op and we'd fall back to `g++` which doesn't exist in CLANG64.
-   # Command-line overrides like `make CC=foo CXX=bar` still win because the
-   # command line beats makefile assignments in GNU make.
    ifneq ($(shell command -v x86_64-w64-mingw32-clang 2>/dev/null),)
       CC = x86_64-w64-mingw32-clang
       CXX = x86_64-w64-mingw32-clang++
@@ -209,10 +224,6 @@ ifeq ($(platform), win)
    endif
 endif
 
-# Ensure Windows target macros are set when using MinGW or llvm-mingw, even
-# if platform isn't detected. clang's -dumpmachine on a mingw target reports
-# e.g. x86_64-w64-windows-gnu, while GCC reports x86_64-w64-mingw32 — match
-# either by looking for the "mingw" or "windows-gnu" substrings.
 ifneq (,$(or $(findstring mingw,$(shell $(CXX) -dumpmachine 2>/dev/null)),$(findstring windows-gnu,$(shell $(CXX) -dumpmachine 2>/dev/null))))
    FLAGS += -D_WIN32 -DWIN32 -D__MINGW32__ -D__MINGW64__
 endif
@@ -230,8 +241,13 @@ INCFLAGS += -I$(LIBCO_DIR)
 INCFLAGS += -I$(LIBRETRO_COMMON)/include
 INCFLAGS += -I$(AMIBERRY_DIR)/external/imgui
 
-ZLIB_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags zlib 2>/dev/null)
-ZLIB_LIBS ?= $(shell $(PKG_CONFIG) --libs zlib 2>/dev/null)
+ifeq ($(platform), ps2)
+   ZLIB_CFLAGS ?= -I$(PS2SDK)/ports/include
+   ZLIB_LIBS ?= -L$(PS2SDK)/ports/lib -lz
+else
+   ZLIB_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags zlib 2>/dev/null)
+   ZLIB_LIBS ?= $(shell $(PKG_CONFIG) --libs zlib 2>/dev/null)
+endif
 
 INCFLAGS += $(ZLIB_CFLAGS)
 LDFLAGS += $(ZLIB_LIBS)
@@ -243,12 +259,10 @@ NLOHMANN_JSON_HEADER := $(NLOHMANN_JSON_DIR)/json.hpp
 INCFLAGS += -I$(LIBRETRO_DIR)/deps
 
 ifeq ($(platform), unix)
-# forkpty() (uaelib's host shell) lives in libutil on glibc/BSD systems.
 LDFLAGS += -ldl -lm -pthread -lutil
 endif
 
 ifneq (,$(findstring android,$(platform)))
-# bionic keeps pthread and forkpty in libc; only the log sink is separate.
 LDFLAGS += -ldl -lm -llog
 endif
 
@@ -257,15 +271,7 @@ LDFLAGS += -lm -lpthread
 endif
 
 ifeq ($(platform), win)
-# Target Windows 7 or newer: bsdsocket_host.cpp reads IP_ADAPTER_ADDRESSES
-# fields (Ipv4Enabled, Ipv4Metric) that the MinGW headers only expose from
-# Vista on, and default to the XP layout otherwise.
 FLAGS += -D_WIN32_WINNT=0x0601
-# llvm-mingw / MSYS2 CLANG64: clang's mingw driver does not auto-link
-# libwinpthread the way GCC's does, so pthread/sem symbols (used by the
-# SDL stubs in libretro/sdl_stub.o etc.) come up undefined at link time.
-# Link winpthread explicitly. The link is also harmless under MinGW-w64
-# GCC, where it's normally pulled in implicitly.
 LDFLAGS += -liconv -lws2_32 -lz -liphlpapi -lgdi32 -lwinmm -lpthread
 endif
 
@@ -735,7 +741,7 @@ $(NLOHMANN_JSON_HEADER):
 	curl -sfL -o $@ https://github.com/nlohmann/json/releases/download/$(NLOHMANN_JSON_VERSION)/json.hpp
 
 $(TARGET): $(OBJECTS)
-	$(CXX) $(INCFLAGS) $(FLAGS) -o $@ $^ $(LDFLAGS)
+	$(AR) rcs $@ $^
 
 $(LIBRETRO_INFO): $(LIBRETRO_DIR)/libretro.cpp $(AMIBERRY_DIR)/CMakeLists.txt
 	@printf 'display_name = "Amiberry"\n' > $@
@@ -757,13 +763,6 @@ $(LIBRETRO_INFO): $(LIBRETRO_DIR)/libretro.cpp $(AMIBERRY_DIR)/CMakeLists.txt
 	$(CC) $(INCFLAGS) $(FLAGS) -std=gnu99 -c -o $@ $<
 
 ifeq ($(platform), win)
-# On Windows, GCC/Clang select libco's amd64.c raw stack-switching backend for
-# x86_64. Those stacks are not registered in the TEB, so SEH-based C++
-# exception unwinding (used by mingw GCC for throws, including the routine
-# caught throws inside the vendored MAME CHD code) cannot dispatch on the
-# emulation cothread stack and kills the process. Undefine __amd64__ for this
-# TU so libco falls through to fiber.c, which uses the Win32 Fiber API
-# (CreateFiber switches TEB stack bounds; exceptions unwind correctly).
 $(LIBCO_DIR)/libco.o: $(LIBCO_DIR)/libco.c
 	$(CC) $(INCFLAGS) $(FLAGS) -U__amd64__ -std=gnu99 -c -o $@ $<
 endif
